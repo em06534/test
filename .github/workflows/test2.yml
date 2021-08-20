@@ -1,0 +1,39 @@
+name: Test RDP
+on: workflow_dispatch
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+    timeout-minutes: 381
+
+    steps:
+    - name: Download NGROK.
+      run: |
+        Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+        Invoke-WebRequest https://raw.githubusercontent.com/em06534/test2/main/files/NGROK-CHECK.bat -OutFile NGROK-CHECK.bat
+        Invoke-WebRequest https://raw.githubusercontent.com/em06534/test/main/Files/loop.bat -OutFile loop.bat
+        
+    - name: Getting Apps.
+      run: |
+        Invoke-WebRequest https://raw.githubusercontent.com/em06534/test2/main/apps/Visual%20Studio%202019.lnk -OutFile "Visual Studio 2019.lnk"
+        Invoke-WebRequest https://github.com/em06534/test2/blob/main/apps/UniKeyNT.exe?raw=true -OutFile "UniKeyNT.exe"
+    - name: Extracting NGROK File.
+      run: Expand-Archive ngrok.zip
+    - name: Connect to your NGROK account.
+      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+    - name: Enable RDP Access.
+      run: | 
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+        copy "Visual Studio 2019.lnk" "C:\Users\Public\Desktop\Visual Studio 2019.lnk"
+        copy "UniKeyNT.exe" "C:\Users\Public\Desktop\UniKeyNT.exe"
+    - name: Create Tunel.
+      run: Start-Process Powershell -ArgumentList '-Noexit -Command ".\ngrok\ngrok.exe tcp --region ap 3389"'
+    - name: Connect to your RDP
+      run: cmd /c NGROK-CHECK.bat
+    - name: All Done. You can close this tab now!
+      run: cmd /c loop.bat
